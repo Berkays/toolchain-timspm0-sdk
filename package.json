@@ -1,0 +1,38 @@
+{
+    "name": "toolchain-timspm0-sdk",
+    "version": "2.8.0-3",
+    "description": "software development kit for MSPM0 microcontrollers by Texas Instruments",
+    "keywords": [
+        "ti",
+        "texas instruments",
+        "mspm0",
+        "toolchain",
+        "build tools",
+        "sdk"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Berkays/toolchain-timspm0-sdk"
+    },
+    "authors": [
+        {
+            "name": "Berkay Gursoy",
+            "email": "berkaygursoy@gmail.com",
+            "url": "https://github.com/Berkays"
+        }
+    ],
+    "license": "MIT",
+    "homepage": "https://www.ti.com/tool/MSPM0-SDK",
+    "frameworks": [
+        "*"
+    ],
+    "platforms": [
+        "timspm0"
+    ],
+    "export": {
+        "exclude": [
+            "mspm0-sdk/docs",
+            "mspm0-sdk/tools"
+        ]
+    }
+}
