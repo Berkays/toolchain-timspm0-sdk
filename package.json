@@ -30,6 +30,7 @@
     ],
     "export": {
         "exclude": [
+            "mspm0-sdk/.git",
             "mspm0-sdk/docs",
             "mspm0-sdk/examples",
             "mspm0-sdk/tools"
