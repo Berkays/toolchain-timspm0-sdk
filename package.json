@@ -1,6 +1,6 @@
 {
     "name": "toolchain-timspm0-sdk",
-    "version": "2.8.0+3",
+    "version": "2.9.0+0",
     "description": "Software development kit for MSPM0 microcontrollers by Texas Instruments (license: TI Software License Agreement, see mspm0-sdk/license_mspm0_sdk_*.txt inside the package)",
     "keywords": [
         "ti",
