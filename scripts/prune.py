@@ -14,9 +14,17 @@ Removed content:
 For git (VCS) installations this is implemented with `git sparse-checkout`
 inside the mspm0-sdk submodule, so the excluded files are omitted in a
 git-native way and future `pio pkg update` (git pull / submodule update)
-operations keep working. For non-git installations (registry tarball) the
-files are deleted directly; for registry installs the same paths are
-already excluded from the tarball, so this is mostly a no-op safety net.
+operations keep working.
+
+`git sparse-checkout set` alone can refuse to remove worktree files it
+considers "not up to date" (for example when a global git filter such as
+git-lfs rewrote files during the clone, or when stat information went
+stale while PlatformIO moved the package directory). This script therefore
+forces the skip-worktree bits for every excluded path and removes any
+leftovers from the working tree afterwards. For non-git installations
+(registry tarball) the files are deleted directly; for registry installs
+the same paths are already excluded from the tarball, so the script is
+mostly a no-op safety net.
 """
 
 import glob
@@ -63,6 +71,22 @@ SPARSE_PATTERNS = ["/*"]
 SPARSE_PATTERNS += ["!/%s/" % d for d in PRUNE_DIRS]
 SPARSE_PATTERNS += ["!/%s" % g for g in PRUNE_GLOBS]
 
+# git pathspecs of everything that must disappear
+PRUNE_PATHSPECS = PRUNE_DIRS + PRUNE_GLOBS
+
+
+def is_git_repo():
+    return os.path.isfile(os.path.join(SDK_DIR, ".git")) or os.path.isdir(
+        os.path.join(SDK_DIR, ".git")
+    )
+
+
+def git(args, check=True, feed=None):
+    cmd = ["git", "-C", SDK_DIR] + args
+    return subprocess.run(
+        cmd, capture_output=True, text=True, check=check, input=feed
+    )
+
 
 def prune_size():
     total = 0
@@ -75,34 +99,37 @@ def prune_size():
     return total
 
 
-def prune_with_delete():
-    """Plain deletion fallback for non-git installs."""
-    for rel_dir in PRUNE_DIRS:
-        target = os.path.join(SDK_DIR, rel_dir)
-        if os.path.isdir(target):
-            shutil.rmtree(target, ignore_errors=True)
-            print("Pruned %s" % rel_dir)
-    for pattern in PRUNE_GLOBS:
-        for target in glob.glob(os.path.join(SDK_DIR, pattern)):
-            if os.path.isfile(target):
-                os.remove(target)
-                print("Pruned %s" % os.path.relpath(target, SDK_DIR))
+def list_tracked_pruned_paths():
+    """Tracked files inside the prune scope, tagged H (worktree) or
+    S (already skip-worktree)."""
+    result = git(["ls-files", "-t", "-z", "--"] + PRUNE_PATHSPECS)
+    paths = []
+    for entry in result.stdout.split("\0"):
+        if not entry:
+            continue
+        # format: "<TAG> <path>"
+        tag, path = entry[:1], entry[2:]
+        if tag == "H":
+            paths.append(path)
+    return paths
 
 
-def prune_with_sparse_checkout():
-    """Configure git sparse-checkout inside the mspm0-sdk submodule.
+def force_skip_worktree(paths):
+    if not paths:
+        return
+    git(
+        ["update-index", "--skip-worktree", "-z", "--stdin"],
+        feed="".join("%s\0" % p for p in paths),
+    )
+    print("Marked %d tracked files as skip-worktree" % len(paths))
 
-    Keeps future `pio pkg update` (git pull --recurse-submodules) working:
-    git itself omits the excluded paths instead of us deleting tracked
-    files behind its back.
-    """
-    if not os.path.isfile(os.path.join(SDK_DIR, ".git")) and not os.path.isdir(
-        os.path.join(SDK_DIR, ".git")
-    ):
+
+def prune_with_git():
+    """Configure git sparse-checkout and force it onto the working tree."""
+    if not is_git_repo():
         return False
-    cmd = ["git", "-C", SDK_DIR, "sparse-checkout", "set", "--no-cone"]
-    cmd += SPARSE_PATTERNS
-    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    result = git(["sparse-checkout", "set", "--no-cone"] + SPARSE_PATTERNS)
     if result.returncode != 0:
         print(
             "Warning: git sparse-checkout failed (%s); falling back to deletion"
@@ -110,7 +137,26 @@ def prune_with_sparse_checkout():
         )
         return False
     print("Configured git sparse-checkout for the mspm0-sdk submodule")
+
+    # Remove any leftovers that sparse-checkout refused to touch
+    # ("not up to date" worktree files)
+    try:
+        force_skip_worktree(list_tracked_pruned_paths())
+    except subprocess.CalledProcessError as exc:
+        print("Warning: could not set skip-worktree bits (%s)" % exc)
     return True
+
+
+def prune_with_delete():
+    """Plain deletion for non-git installs (and leftovers from prune_with_git)."""
+    for rel_dir in PRUNE_DIRS:
+        target = os.path.join(SDK_DIR, rel_dir)
+        if os.path.isdir(target):
+            shutil.rmtree(target, ignore_errors=True)
+    for pattern in PRUNE_GLOBS:
+        for target in glob.glob(os.path.join(SDK_DIR, pattern)):
+            if os.path.isfile(target):
+                os.remove(target)
 
 
 def main():
@@ -118,8 +164,11 @@ def main():
         print("Nothing to prune (no mspm0-sdk directory)")
         return 0
     before = prune_size()
-    if not prune_with_sparse_checkout():
-        prune_with_delete()
+    if is_git_repo():
+        if not prune_with_git():
+            prune_with_delete()
+    # Always sweep leftovers (also a no-op for already-pruned tarballs)
+    prune_with_delete()
     after = prune_size()
     print(
         "Pruned %.1f MB (%.1f MB remain)"
