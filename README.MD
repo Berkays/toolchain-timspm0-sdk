@@ -10,10 +10,24 @@ subject to the TI Software License Agreement shipped inside the package
 ## Structure
 
 The SDK lives in the `mspm0-sdk` git submodule pointing at a release tag of
-<https://github.com/TexasInstruments/mspm0-sdk>. When published to the
-PlatformIO Registry, `docs/`, `examples/` and `tools/` are excluded from the
-tarball (see `export.exclude` in `package.json`); the remaining payload
-(`source/`, `kernel/`, `.metadata/`) is ~50 MB compressed.
+<https://github.com/TexasInstruments/mspm0-sdk>.
+
+To keep installations lean, content the timspm0 platform cannot use is
+pruned on install (via the `scripts/prune.py` post-install script) and
+excluded from registry tarballs (via `export.exclude`):
+
+- `docs/`, `examples/`, `tools/` and the root-level `*.html` documents
+  (with all documentation images)
+- prebuilt libraries, startup and linker files for non-GCC toolchains
+  (IAR, Keil, TI Clang) - the platform builds with GCC only
+- MSPS series device support files (startup/linker scripts) - the platform
+  targets MSPM0 MCUs only
+
+For git installs the prune uses `git sparse-checkout` inside the submodule,
+so `pio pkg update` keeps working and future SDK releases stay pruned
+automatically. A full SDK checkout is ~2 GB; pruned it is ~160 MB (~40 MB
+as a registry tarball). If you need the removed content (e.g. IAR/Keil
+support or the SDK examples), use TI's upstream repository directly.
 
 ## Versioning
 

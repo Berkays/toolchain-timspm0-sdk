@@ -28,12 +28,30 @@
     "platforms": [
         "timspm0"
     ],
+    "scripts": {
+        "postinstall": "scripts/prune.py"
+    },
     "export": {
         "exclude": [
             "mspm0-sdk/.git",
+            "mspm0-sdk/*.html",
             "mspm0-sdk/docs",
             "mspm0-sdk/examples",
-            "mspm0-sdk/tools"
+            "mspm0-sdk/tools",
+            "mspm0-sdk/source/ti/driverlib/lib/iar",
+            "mspm0-sdk/source/ti/driverlib/lib/keil",
+            "mspm0-sdk/source/ti/driverlib/lib/ticlang",
+            "mspm0-sdk/source/ti/iqmath/lib/iar",
+            "mspm0-sdk/source/ti/iqmath/lib/keil",
+            "mspm0-sdk/source/ti/iqmath/lib/ticlang",
+            "mspm0-sdk/source/ti/devices/msp/m0p/startup_system_files/iar",
+            "mspm0-sdk/source/ti/devices/msp/m0p/startup_system_files/keil",
+            "mspm0-sdk/source/ti/devices/msp/m0p/startup_system_files/ticlang",
+            "mspm0-sdk/source/ti/devices/msp/m0p/startup_system_files/gcc/startup_msps*",
+            "mspm0-sdk/source/ti/devices/msp/m0p/linker_files/iar",
+            "mspm0-sdk/source/ti/devices/msp/m0p/linker_files/keil",
+            "mspm0-sdk/source/ti/devices/msp/m0p/linker_files/ticlang",
+            "mspm0-sdk/source/ti/devices/msp/m0p/linker_files/gcc/msps*"
         ]
     }
 }
